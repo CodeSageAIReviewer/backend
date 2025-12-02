@@ -10,12 +10,13 @@
 2. Build and run with `docker-compose up --build`.
 3. Apply migrations inside the `web` container: `docker-compose exec web python manage.py migrate`.
 4. Access the application on `http://localhost:8000/`.
+5. Start Celery worker & beat after Redis is up: `docker-compose up --build worker beat`; the beat service schedules periodic tasks (e.g., `users.tasks.ping`) defined in `app/app/settings.py`.
 
 ## File layout
 ```
 backend/
 ├── Dockerfile
-├── docker-compose.yml
+├── docker-compose.yml  # defines web, db, redis, and worker services
 ├── requirements.txt
 ├── README.md
 ├── .env

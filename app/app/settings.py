@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 
 from environs import Env
@@ -93,5 +94,18 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
 ]
+
+CELERY_BROKER_URL = env.str("CELERY_BROKER_URL", "redis://redis:6379/0")
+CELERY_RESULT_BACKEND = env.str("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {
+    "users-ping-every-30-seconds": {
+        "task": "users.tasks.ping",
+        "schedule": timedelta(seconds=30),
+    },
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

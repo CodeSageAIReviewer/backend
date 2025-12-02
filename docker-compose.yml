@@ -21,5 +21,32 @@ services:
     depends_on:
       - db
 
+  redis:
+    image: redis:7
+    restart: unless-stopped
+
+  worker:
+    build: .
+    working_dir: /code/app
+    command: celery -A app worker --loglevel=info
+    volumes:
+      - .:/code
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+  beat:
+    build: .
+    working_dir: /code/app
+    command: celery -A app beat --loglevel=info
+    volumes:
+      - .:/code
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - db
+
 volumes:
   postgres_data:
