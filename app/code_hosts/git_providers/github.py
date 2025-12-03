@@ -2,7 +2,11 @@ from typing import List
 
 import requests
 
-from code_hosts.git_providers.base import BaseGitProvider, RepositoryInfo
+from code_hosts.git_providers.base import (
+    BaseGitProvider,
+    MergeRequestInfo,
+    RepositoryInfo,
+)
 
 
 class GitHubProvider(BaseGitProvider):
@@ -77,8 +81,60 @@ class GitHubProvider(BaseGitProvider):
     def list_commits(self, repo_external_id, branch=None):
         raise NotImplementedError
 
-    def list_merge_requests(self, repo_external_id):
-        raise NotImplementedError
+    def list_merge_requests(
+        self, repo_full_path: str, state: str | None = None
+    ) -> List[MergeRequestInfo]:
+        """
+        Возвращает Pull Requests из репозитория GitHub.
+        repo_full_path — строка вида 'owner/repo'
+        """
+
+        api_state = None
+        merged_only = False
+        if state:
+            if state == "merged":
+                api_state = "closed"
+                merged_only = True
+            else:
+                api_state = state
+
+        url = f"{self.BASE_API_URL}/repos/{repo_full_path}/pulls?per_page=100"
+        if api_state:
+            url += f"&state={api_state}"
+
+        prs = []
+        while url:
+            response = requests.get(url, headers=self._headers())
+            response.raise_for_status()
+
+            data = response.json()
+
+            for pr in data:
+                if merged_only and pr.get("merged_at") is None:
+                    continue
+
+                prs.append(
+                    MergeRequestInfo(
+                        external_id=str(pr["id"]),
+                        iid=str(pr["number"]),  # локальный ID PR
+                        title=pr["title"],
+                        description=pr.get("body") or "",
+                        author_name=pr["user"]["login"],
+                        author_username=pr["user"]["login"],
+                        source_branch=pr["head"]["ref"],
+                        target_branch=pr["base"]["ref"],
+                        state="merged" if merged_only else pr["state"],
+                        web_url=pr["html_url"],
+                        created_at=pr["created_at"],
+                        updated_at=pr["updated_at"],
+                        merged_at=pr.get("merged_at"),
+                    )
+                )
+
+            # Pagination
+            url = self._get_next_page(response)
+
+        return prs
 
     def get_diff(self, repo_external_id, mr_external_id):
         raise NotImplementedError

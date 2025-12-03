@@ -35,6 +35,7 @@ class MergeRequestInfo:
     web_url: Optional[str]
     created_at: str
     updated_at: str
+    merged_at: Optional[str] = None
 
 
 class BaseGitProvider(ABC):
@@ -63,7 +64,9 @@ class BaseGitProvider(ABC):
     # 3. Merge Requests / Pull Requests
     # ----------------------------------------------------
     @abstractmethod
-    def list_merge_requests(self, repo_external_id: str) -> List[MergeRequestInfo]:
+    def list_merge_requests(
+        self, repo_external_id: str, state: str | None = None
+    ) -> List[MergeRequestInfo]:
         """Возвращает список MR/PR репозитория."""
 
     @abstractmethod
