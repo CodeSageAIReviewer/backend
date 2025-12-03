@@ -3,6 +3,7 @@
 ## Overview
 - Django project named `app` with PostgreSQL backend.
 - REST API support is driven by Django REST Framework, and requests are CORS-protected via `django-cors-headers`.
+- Authentication is handled via JWTs—use `/api/users/register/` to sign up (username + password twice) and `/api/users/login/` or `/api/users/refresh/` to obtain tokens.
 - Environment variables live in `.env`, copy `.env.dist` for template.
 - Docker setup spins up `web` (Gunicorn/Django) and `db` (PostgreSQL).
 
