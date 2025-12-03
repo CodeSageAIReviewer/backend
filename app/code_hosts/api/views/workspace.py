@@ -4,14 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from code_hosts.api.utils import format_datetime
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
-
-
-def _format_datetime(value):
-    iso = value.isoformat()
-    if iso.endswith("+00:00"):
-        iso = iso[: -len("+00:00")] + "Z"
-    return iso
 
 
 class WorkspaceCreateView(APIView):
@@ -42,7 +36,7 @@ class WorkspaceCreateView(APIView):
                 "id": workspace.id,
                 "name": workspace.name,
                 "owner_id": workspace.owner_id,
-                "created_at": _format_datetime(workspace.created_at),
+                "created_at": format_datetime(workspace.created_at),
                 "role": membership.role,
             },
             status=status.HTTP_201_CREATED,
@@ -68,7 +62,7 @@ class WorkspaceListView(APIView):
                     "name": workspace.name,
                     "owner_id": workspace.owner_id,
                     "role": membership.role,
-                    "created_at": _format_datetime(workspace.created_at),
+                    "created_at": format_datetime(workspace.created_at),
                 }
             )
 

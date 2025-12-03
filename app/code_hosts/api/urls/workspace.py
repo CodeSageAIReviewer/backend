@@ -1,5 +1,9 @@
 from django.urls import path
 
+from code_hosts.api.views.integration import (
+    WorkspaceIntegrationCreateView,
+    WorkspaceIntegrationListView,
+)
 from code_hosts.api.views.workspace import (
     WorkspaceCreateView,
     WorkspaceDeleteView,
@@ -13,5 +17,16 @@ urlpatterns = [
         "<int:workspace_id>/delete/",
         WorkspaceDeleteView.as_view(),
         name="workspace-delete",
+    ),
+    # Integration URLs
+    path(
+        "<int:workspace_id>/integrations/create/",
+        WorkspaceIntegrationCreateView.as_view(),
+        name="workspace-integration-create",
+    ),
+    path(
+        "<int:workspace_id>/integrations/list/",
+        WorkspaceIntegrationListView.as_view(),
+        name="workspace-integration-list",
     ),
 ]

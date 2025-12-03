@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 
 
@@ -106,3 +107,143 @@ class WorkspaceAPITest(TestCase):
         response = self.client.delete(reverse("workspace-delete", args=[999]))
 
         self.assertEqual(response.status_code, 404)
+
+    def test_create_integration_as_admin(self):
+        workspace = Workspace.objects.create(name="Team", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.ADMIN
+        )
+
+        payload = {
+            "name": "Main GitLab",
+            "provider": "gitlab",
+            "access_token": "token-123",
+        }
+
+        response = self.client.post(
+            reverse("workspace-integration-create", args=[workspace.id]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["name"], payload["name"])
+        self.assertEqual(response.data["workspace_id"], workspace.id)
+        self.assertEqual(response.data["provider"], CodeHostProvider.GITLAB)
+        self.assertTrue(response.data["created_at"].endswith("Z"))
+        self.assertEqual(response.data["base_url"], "https://gitlab.com")
+
+    def test_create_integration_requires_provider(self):
+        workspace = Workspace.objects.create(name="Team", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.ADMIN
+        )
+
+        payload = {
+            "name": "Main GitLab",
+            "access_token": "token-123",
+        }
+
+        response = self.client.post(
+            reverse("workspace-integration-create", args=[workspace.id]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"detail": "Provider is required."})
+
+    def test_create_integration_forbidden_for_non_admin(self):
+        other_user = get_user_model().objects.create_user(
+            username="workspace_owner", password="owner-pass"
+        )
+        workspace = Workspace.objects.create(name="Foreign", owner=other_user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.MEMBER
+        )
+
+        payload = {
+            "name": "Main GitLab",
+            "provider": "gitlab",
+            "access_token": "token-123",
+        }
+
+        response = self.client.post(
+            reverse("workspace-integration-create", args=[workspace.id]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.data,
+            {
+                "detail": "You do not have permission to add integrations to this workspace."
+            },
+        )
+
+    def test_create_integration_returns_404_for_missing_membership(self):
+        other_user = get_user_model().objects.create_user(
+            username="workspace_owner", password="owner-pass"
+        )
+        workspace = Workspace.objects.create(name="Foreign", owner=other_user)
+
+        payload = {
+            "name": "Main GitLab",
+            "provider": "gitlab",
+            "access_token": "token-123",
+        }
+
+        response = self.client.post(
+            reverse("workspace-integration-create", args=[workspace.id]),
+            payload,
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_integrations_returns_entries(self):
+        workspace = Workspace.objects.create(name="Team", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.ADMIN
+        )
+
+        CodeHostIntegration.objects.create(
+            workspace=workspace,
+            name="Main GitLab",
+            provider=CodeHostProvider.GITLAB,
+            base_url="https://gitlab.com",
+            access_token="token-1",
+        )
+        CodeHostIntegration.objects.create(
+            workspace=workspace,
+            name="Company GitHub",
+            provider=CodeHostProvider.GITHUB,
+            base_url="https://api.github.com",
+            access_token="token-2",
+        )
+
+        response = self.client.get(
+            reverse("workspace-integration-list", args=[workspace.id])
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+        first_entry = response.data[0]
+        self.assertEqual(first_entry["provider"], CodeHostProvider.GITLAB)
+        self.assertTrue(first_entry["created_at"].endswith("Z"))
+
+    def test_list_integrations_forbidden_for_non_member(self):
+        other_user = get_user_model().objects.create_user(
+            username="workspace_owner", password="owner-pass"
+        )
+        workspace = Workspace.objects.create(name="Foreign", owner=other_user)
+
+        response = self.client.get(
+            reverse("workspace-integration-list", args=[workspace.id])
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.data, {"detail": "You do not have access to this workspace."}
+        )
