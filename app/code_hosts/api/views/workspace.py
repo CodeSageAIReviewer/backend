@@ -73,3 +73,29 @@ class WorkspaceListView(APIView):
             )
 
         return Response(payload)
+
+
+class WorkspaceDeleteView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def delete(self, request, workspace_id, *args, **kwargs):
+        try:
+            workspace = Workspace.objects.get(id=workspace_id)
+        except Workspace.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        is_owner = workspace.owner_id == request.user.id
+        membership = WorkspaceMembership.objects.filter(
+            workspace=workspace, user=request.user
+        ).first()
+
+        if not is_owner and (
+            membership is None or membership.role != WorkspaceRole.ADMIN
+        ):
+            return Response(
+                {"detail": "Workspace deletion is restricted."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        workspace.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

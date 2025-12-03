@@ -74,3 +74,35 @@ class WorkspaceAPITest(TestCase):
         second_entry = response.data[1]
         self.assertEqual(second_entry["id"], workspace_two.id)
         self.assertEqual(second_entry["role"], WorkspaceRole.MEMBER)
+
+    def test_delete_workspace_as_admin(self):
+        workspace = Workspace.objects.create(name="DeleteMe", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.ADMIN
+        )
+
+        response = self.client.delete(reverse("workspace-delete", args=[workspace.id]))
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Workspace.objects.filter(id=workspace.id).exists())
+
+    def test_delete_workspace_forbidden_for_member(self):
+        other_user = get_user_model().objects.create_user(
+            username="owner", password="owner-pass"
+        )
+        workspace = Workspace.objects.create(name="Foreign", owner=other_user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=other_user, role=WorkspaceRole.ADMIN
+        )
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.MEMBER
+        )
+
+        response = self.client.delete(reverse("workspace-delete", args=[workspace.id]))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_delete_workspace_returns_404_for_unknown(self):
+        response = self.client.delete(reverse("workspace-delete", args=[999]))
+
+        self.assertEqual(response.status_code, 404)
