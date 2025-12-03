@@ -1,9 +1,15 @@
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from django.db import transaction
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from code_hosts.api.permissions import (
+    WorkspaceIntegrationDeletePermission,
+    WorkspaceIntegrationModifyPermission,
+)
 from code_hosts.api.utils import format_datetime
 from code_hosts.git_providers.factory import get_git_provider
 from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
@@ -201,6 +207,122 @@ class WorkspaceIntegrationAvailableRepositoriesView(WorkspaceIntegrationBaseView
             )
 
         return Response(payload)
+
+
+class WorkspaceIntegrationUpdateView(WorkspaceIntegrationBaseView):
+    permission_classes = (IsAuthenticated, WorkspaceIntegrationModifyPermission)
+
+    def patch(self, request, workspace_id, integration_id, *args, **kwargs):
+        workspace = getattr(self, "workspace", None)
+        if workspace is None:
+            return Response(
+                {"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            integration = CodeHostIntegration.objects.get(
+                id=integration_id, workspace=workspace
+            )
+        except CodeHostIntegration.DoesNotExist:
+            return Response(
+                {"detail": "Integration not found in this workspace."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if "provider" in request.data:
+            return Response(
+                {"detail": "Field 'provider' cannot be modified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data
+        if "name" in data:
+            name = data["name"]
+            if not isinstance(name, str) or not (1 <= len(name) <= 255):
+                return Response(
+                    {"detail": "Invalid name length."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            integration.name = name
+
+        if "base_url" in data:
+            base_url = data["base_url"]
+            if not isinstance(base_url, str) or not base_url:
+                return Response(
+                    {"detail": "Invalid base_url format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            validator = URLValidator()
+            try:
+                validator(base_url)
+            except ValidationError:
+                return Response(
+                    {"detail": "Invalid base_url format."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            integration.base_url = base_url
+
+        if "access_token" in data:
+            access_token = data["access_token"]
+            if not isinstance(access_token, str) or not access_token:
+                return Response(
+                    {"detail": "Invalid access token."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            integration.access_token = access_token
+
+        if "refresh_token" in data:
+            refresh_token = data["refresh_token"]
+            if refresh_token is not None and not isinstance(refresh_token, str):
+                return Response(
+                    {"detail": "Invalid refresh token."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            integration.refresh_token = refresh_token
+
+        integration.save()
+
+        return Response(
+            {
+                "id": integration.id,
+                "workspace_id": workspace.id,
+                "name": integration.name,
+                "provider": integration.provider,
+                "base_url": integration.base_url,
+                "access_token_masked": "***********",
+                "refresh_token_present": bool(integration.refresh_token),
+                "updated_at": format_datetime(integration.updated_at),
+            }
+        )
+
+
+class WorkspaceIntegrationDeleteView(WorkspaceIntegrationBaseView):
+    permission_classes = (IsAuthenticated, WorkspaceIntegrationDeletePermission)
+
+    def delete(self, request, workspace_id, integration_id, *args, **kwargs):
+        workspace = getattr(self, "workspace", None)
+        if workspace is None:
+            return Response(
+                {"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            integration = CodeHostIntegration.objects.get(
+                id=integration_id, workspace=workspace
+            )
+        except CodeHostIntegration.DoesNotExist:
+            return Response(
+                {"detail": "Integration not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        integration.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class WorkspaceRepositoryConnectView(WorkspaceIntegrationBaseView):

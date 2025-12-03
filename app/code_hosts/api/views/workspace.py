@@ -4,6 +4,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from code_hosts.api.permissions import (
+    WorkspaceDeletePermission,
+    WorkspaceModifyPermission,
+)
 from code_hosts.api.utils import format_datetime
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 
@@ -70,26 +74,45 @@ class WorkspaceListView(APIView):
 
 
 class WorkspaceDeleteView(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, WorkspaceDeletePermission)
 
     def delete(self, request, workspace_id, *args, **kwargs):
-        try:
-            workspace = Workspace.objects.get(id=workspace_id)
-        except Workspace.DoesNotExist:
+        workspace = getattr(self, "workspace", None)
+        if workspace is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-
-        is_owner = workspace.owner_id == request.user.id
-        membership = WorkspaceMembership.objects.filter(
-            workspace=workspace, user=request.user
-        ).first()
-
-        if not is_owner and (
-            membership is None or membership.role != WorkspaceRole.ADMIN
-        ):
-            return Response(
-                {"detail": "Workspace deletion is restricted."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
 
         workspace.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class WorkspaceUpdateView(APIView):
+    permission_classes = (IsAuthenticated, WorkspaceModifyPermission)
+
+    def patch(self, request, workspace_id, *args, **kwargs):
+        workspace = getattr(self, "workspace", None)
+        if workspace is None:
+            return Response(
+                {"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        data = request.data
+        if "name" in data:
+            name = data.get("name")
+            if not isinstance(name, str) or not (1 <= len(name) <= 255):
+                return Response(
+                    {"detail": "Invalid name length."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            workspace.name = name
+
+        workspace.save()
+
+        return Response(
+            {
+                "id": workspace.id,
+                "name": workspace.name,
+                "owner_id": workspace.owner_id,
+                "updated_at": format_datetime(workspace.updated_at),
+            }
+        )
