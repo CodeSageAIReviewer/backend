@@ -195,9 +195,16 @@ class WorkspaceIntegrationAvailableRepositoriesView(WorkspaceIntegrationBaseView
 
         provider = get_git_provider(integration)
         repositories = provider.list_repositories()
+        existing_ids = set(
+            Repository.objects.filter(integration=integration).values_list(
+                "external_id", flat=True
+            )
+        )
 
         payload = []
         for repository in repositories:
+            if repository.external_id in existing_ids:
+                continue
             payload.append(
                 {
                     "external_id": repository.external_id,
