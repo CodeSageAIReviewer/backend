@@ -9,7 +9,6 @@ class Workspace(SimpleBaseModel):
     owner = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="owned_workspaces"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
 
 
 class WorkspaceRole(models.TextChoices):
@@ -18,7 +17,7 @@ class WorkspaceRole(models.TextChoices):
     VIEWER = "viewer", "Viewer"
 
 
-class WorkspaceMembership(models.Model):
+class WorkspaceMembership(SimpleBaseModel):
     workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
 
