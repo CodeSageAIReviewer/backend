@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "users",
     "common",
     "code_hosts",
+    "llm",
 ]
 
 MIDDLEWARE = [
