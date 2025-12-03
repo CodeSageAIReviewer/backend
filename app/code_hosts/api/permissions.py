@@ -54,3 +54,7 @@ class WorkspaceIntegrationModifyPermission(WorkspaceAdminOrOwnerPermission):
 
 class WorkspaceIntegrationDeletePermission(WorkspaceAdminOrOwnerPermission):
     message = "You do not have permission to delete this integration."
+
+
+class WorkspaceRepositoryDeletePermission(WorkspaceAdminOrOwnerPermission):
+    message = "You do not have permission to delete repositories in this workspace."

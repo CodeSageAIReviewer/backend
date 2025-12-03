@@ -7,6 +7,7 @@ from code_hosts.api.views.integration import (
     WorkspaceIntegrationListView,
     WorkspaceIntegrationUpdateView,
     WorkspaceRepositoryConnectView,
+    WorkspaceRepositoryDeleteView,
     WorkspaceRepositoryListView,
 )
 from code_hosts.api.views.workspace import (
@@ -64,5 +65,10 @@ urlpatterns = [
         "<int:workspace_id>/repositories/list/",
         WorkspaceRepositoryListView.as_view(),
         name="workspace-repositories-list",
+    ),
+    path(
+        "<int:workspace_id>/repositories/<int:repository_id>/delete/",
+        WorkspaceRepositoryDeleteView.as_view(),
+        name="workspace-repositories-delete",
     ),
 ]

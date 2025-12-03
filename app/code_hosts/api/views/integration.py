@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from code_hosts.api.permissions import (
     WorkspaceIntegrationDeletePermission,
     WorkspaceIntegrationModifyPermission,
+    WorkspaceRepositoryDeletePermission,
 )
 from code_hosts.api.utils import format_datetime
 from code_hosts.git_providers.factory import get_git_provider
@@ -484,3 +485,26 @@ class WorkspaceRepositoryListView(WorkspaceIntegrationBaseView):
             )
 
         return Response(payload)
+
+
+class WorkspaceRepositoryDeleteView(WorkspaceIntegrationBaseView):
+    permission_classes = (IsAuthenticated, WorkspaceRepositoryDeletePermission)
+
+    def delete(self, request, workspace_id, repository_id, *args, **kwargs):
+        workspace = getattr(self, "workspace", None)
+        if workspace is None:
+            return Response(
+                {"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            repository = Repository.objects.select_related("integration").get(
+                id=repository_id, integration__workspace=workspace
+            )
+        except Repository.DoesNotExist:
+            return Response(
+                {"detail": "Repository not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        repository.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
