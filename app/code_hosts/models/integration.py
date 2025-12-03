@@ -14,6 +14,10 @@ class CodeHostIntegration(SimpleBaseModel):
     GitLab, GitHub и т.д.
     """
 
+    workspace = models.ForeignKey(
+        "code_hosts.Workspace", on_delete=models.CASCADE, related_name="integrations"
+    )
+
     name = models.CharField(
         max_length=255, help_text="Название интеграции, отображаемое пользователю"
     )

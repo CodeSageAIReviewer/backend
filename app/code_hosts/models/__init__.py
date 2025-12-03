@@ -5,3 +5,4 @@ from .commit_author import CommitAuthor  # noqa: F401
 from .integration import CodeHostIntegration  # noqa: F401
 from .merge_request import MergeRequest  # noqa: F401
 from .repository import Repository  # noqa: F401
+from .workspace import Workspace, WorkspaceMembership, WorkspaceRole  # noqa: F401
