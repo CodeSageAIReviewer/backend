@@ -1,3 +1,76 @@
+from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.urls import reverse
+from rest_framework.test import APIClient
 
-# Create your tests here.
+from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
+
+
+class WorkspaceAPITest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            username="workspace_user", password="strong-pass"
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def test_create_workspace_assigns_owner_and_admin(self):
+        response = self.client.post(reverse("workspace-create"), {"name": "AI Team"})
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["name"], "AI Team")
+        self.assertEqual(response.data["owner_id"], self.user.id)
+        self.assertEqual(response.data["role"], WorkspaceRole.ADMIN)
+        self.assertTrue(response.data["created_at"].endswith("Z"))
+
+        workspace = Workspace.objects.get(id=response.data["id"])
+        membership = WorkspaceMembership.objects.get(
+            workspace=workspace, user=self.user
+        )
+        self.assertEqual(membership.role, WorkspaceRole.ADMIN)
+
+    def test_create_workspace_requires_name(self):
+        response = self.client.post(reverse("workspace-create"), {})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"detail": "Name is required."})
+
+    def test_create_workspace_rejects_invalid_length(self):
+        response = self.client.post(reverse("workspace-create"), {"name": ""})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.data, {"detail": "Invalid name length."})
+
+    def test_list_workspaces_shows_memberships(self):
+        other_user = get_user_model().objects.create_user(
+            username="second_user", password="second-pass"
+        )
+        workspace_one = Workspace.objects.create(name="First", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace_one, user=self.user, role=WorkspaceRole.ADMIN
+        )
+
+        workspace_two = Workspace.objects.create(name="Second", owner=other_user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace_two, user=self.user, role=WorkspaceRole.MEMBER
+        )
+
+        WorkspaceMembership.objects.create(
+            workspace=workspace_two, user=other_user, role=WorkspaceRole.ADMIN
+        )
+
+        response = self.client.get(reverse("workspace-list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 2)
+
+        first_entry = response.data[0]
+        self.assertEqual(first_entry["id"], workspace_one.id)
+        self.assertEqual(first_entry["name"], "First")
+        self.assertEqual(first_entry["owner_id"], self.user.id)
+        self.assertEqual(first_entry["role"], WorkspaceRole.ADMIN)
+        self.assertTrue(first_entry["created_at"].endswith("Z"))
+
+        second_entry = response.data[1]
+        self.assertEqual(second_entry["id"], workspace_two.id)
+        self.assertEqual(second_entry["role"], WorkspaceRole.MEMBER)
