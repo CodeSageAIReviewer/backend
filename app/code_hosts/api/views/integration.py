@@ -14,8 +14,10 @@ from code_hosts.api.permissions import (
 from code_hosts.api.utils import format_datetime
 from code_hosts.git_providers.factory import get_git_provider
 from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
+from code_hosts.models.merge_request import MergeRequest, MergeRequestState
 from code_hosts.models.repository import Repository
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
+from code_hosts.tasks import sync_merge_requests
 
 PROVIDER_DEFAULT_URLS = {
     CodeHostProvider.GITLAB: "https://gitlab.com",
@@ -485,6 +487,115 @@ class WorkspaceRepositoryListView(WorkspaceIntegrationBaseView):
             )
 
         return Response(payload)
+
+
+class WorkspaceRepositoryMergeRequestListView(WorkspaceIntegrationBaseView):
+    def get(self, request, workspace_id, repository_id, *args, **kwargs):
+        workspace, membership = self._get_workspace_and_membership(workspace_id)
+        if workspace is None:
+            return Response(
+                {"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if membership is None:
+            return Response(
+                {"detail": "You do not have access to this workspace."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            repository = Repository.objects.select_related("integration").get(
+                id=repository_id, integration__workspace=workspace
+            )
+        except Repository.DoesNotExist:
+            return Response(
+                {"detail": "Repository not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        qs = MergeRequest.objects.filter(repository=repository)
+
+        state = request.query_params.get("state")
+        if state:
+            normalized_state = state.strip().lower()
+            valid_states = {choice.value for choice in MergeRequestState}
+            if normalized_state not in valid_states:
+                return Response(
+                    {"detail": "Invalid state filter."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            qs = qs.filter(state=normalized_state)
+
+        search = request.query_params.get("search")
+        if search:
+            qs = qs.filter(title__icontains=search)
+
+        title = request.query_params.get("title")
+        if title:
+            qs = qs.filter(title__icontains=title)
+
+        branch = request.query_params.get("branch")
+        if branch:
+            qs = qs.filter(source_branch=branch)
+
+        payload = []
+        for mr in qs:
+            payload.append(
+                {
+                    "id": mr.id,
+                    "external_id": mr.external_id,
+                    "iid": mr.iid,
+                    "title": mr.title,
+                    "description": mr.description,
+                    "author_name": mr.author_name,
+                    "author_username": mr.author_username,
+                    "source_branch": mr.source_branch,
+                    "target_branch": mr.target_branch,
+                    "state": mr.state,
+                    "web_url": mr.web_url,
+                    "created_at": format_datetime(mr.created_at),
+                    "updated_at": format_datetime(mr.updated_at),
+                }
+            )
+
+        return Response(payload)
+
+
+class WorkspaceRepositoryMergeRequestSyncView(WorkspaceIntegrationBaseView):
+    def post(self, request, workspace_id, repository_id, *args, **kwargs):
+        workspace, membership = self._get_workspace_and_membership(workspace_id)
+        if workspace is None:
+            return Response(
+                {"detail": "Workspace not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        has_membership = membership is not None and membership.role in {
+            WorkspaceRole.ADMIN,
+            WorkspaceRole.MEMBER,
+        }
+        if not has_membership and workspace.owner_id != request.user.id:
+            return Response(
+                {"detail": "You do not have access to this repository."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            repository = Repository.objects.select_related("integration").get(
+                id=repository_id, integration__workspace=workspace
+            )
+        except Repository.DoesNotExist:
+            return Response(
+                {"detail": "Repository not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        sync_merge_requests.delay(repository.id)
+
+        return Response(
+            {
+                "status": "scheduled",
+                "repository_id": repository.id,
+                "task": "sync_merge_requests",
+            }
+        )
 
 
 class WorkspaceRepositoryDeleteView(WorkspaceIntegrationBaseView):

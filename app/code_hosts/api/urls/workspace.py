@@ -9,6 +9,8 @@ from code_hosts.api.views.integration import (
     WorkspaceRepositoryConnectView,
     WorkspaceRepositoryDeleteView,
     WorkspaceRepositoryListView,
+    WorkspaceRepositoryMergeRequestListView,
+    WorkspaceRepositoryMergeRequestSyncView,
 )
 from code_hosts.api.views.workspace import (
     WorkspaceCreateView,
@@ -70,5 +72,15 @@ urlpatterns = [
         "<int:workspace_id>/repositories/<int:repository_id>/delete/",
         WorkspaceRepositoryDeleteView.as_view(),
         name="workspace-repositories-delete",
+    ),
+    path(
+        "<int:workspace_id>/repositories/<int:repository_id>/merge-requests/list/",
+        WorkspaceRepositoryMergeRequestListView.as_view(),
+        name="workspace-repository-merge-requests-list",
+    ),
+    path(
+        "<int:workspace_id>/repositories/<int:repository_id>/merge-requests/sync/",
+        WorkspaceRepositoryMergeRequestSyncView.as_view(),
+        name="workspace-repository-merge-requests-sync",
     ),
 ]
