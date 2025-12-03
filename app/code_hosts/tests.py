@@ -1,8 +1,11 @@
+from unittest.mock import MagicMock, patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from code_hosts.git_providers.base import RepositoryInfo
 from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 
@@ -247,3 +250,102 @@ class WorkspaceAPITest(TestCase):
         self.assertEqual(
             response.data, {"detail": "You do not have access to this workspace."}
         )
+
+    @patch("code_hosts.api.views.integration.get_git_provider")
+    def test_list_available_repositories_returns_data(self, mock_get_git_provider):
+        workspace = Workspace.objects.create(name="Team", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.ADMIN
+        )
+        integration = CodeHostIntegration.objects.create(
+            workspace=workspace,
+            name="Main GitLab",
+            provider=CodeHostProvider.GITLAB,
+            base_url="https://gitlab.com",
+            access_token="token-1",
+        )
+
+        repository_info = RepositoryInfo(
+            external_id="12345",
+            name="app",
+            full_path="team/app",
+            default_branch="main",
+            web_url="https://gitlab.com/team/app",
+        )
+        mock_provider = MagicMock()
+        mock_provider.list_repositories.return_value = [repository_info]
+        mock_get_git_provider.return_value = mock_provider
+
+        response = self.client.get(
+            reverse(
+                "workspace-integration-repositories-available",
+                args=[workspace.id, integration.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.data,
+            [  # order preserved
+                {
+                    "external_id": repository_info.external_id,
+                    "name": repository_info.name,
+                    "full_path": repository_info.full_path,
+                    "default_branch": repository_info.default_branch,
+                    "provider": integration.provider,
+                    "web_url": repository_info.web_url,
+                }
+            ],
+        )
+        mock_get_git_provider.assert_called_once_with(integration)
+        mock_provider.list_repositories.assert_called_once()
+
+    def test_list_available_repositories_forbidden_for_non_member(self):
+        other_user = get_user_model().objects.create_user(
+            username="workspace_owner", password="owner-pass"
+        )
+        workspace = Workspace.objects.create(name="Foreign", owner=other_user)
+        integration = CodeHostIntegration.objects.create(
+            workspace=workspace,
+            name="Main GitLab",
+            provider=CodeHostProvider.GITLAB,
+            base_url="https://gitlab.com",
+            access_token="token-1",
+        )
+
+        response = self.client.get(
+            reverse(
+                "workspace-integration-repositories-available",
+                args=[workspace.id, integration.id],
+            )
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.data, {"detail": "You do not have access to this workspace."}
+        )
+
+    def test_list_available_repositories_returns_404_for_missing_integration(self):
+        workspace = Workspace.objects.create(name="Team", owner=self.user)
+        WorkspaceMembership.objects.create(
+            workspace=workspace, user=self.user, role=WorkspaceRole.ADMIN
+        )
+
+        response = self.client.get(
+            reverse(
+                "workspace-integration-repositories-available",
+                args=[workspace.id, 999],
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_list_available_repositories_returns_404_for_missing_workspace(self):
+        response = self.client.get(
+            reverse(
+                "workspace-integration-repositories-available",
+                args=[999, 1],
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)

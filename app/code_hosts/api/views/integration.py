@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from code_hosts.api.utils import format_datetime
+from code_hosts.git_providers.factory import get_git_provider
 from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 
@@ -136,7 +137,7 @@ class WorkspaceIntegrationListView(WorkspaceIntegrationBaseView):
     def get(self, request, workspace_id, *args, **kwargs):
         workspace, membership = self._get_workspace_and_membership(workspace_id)
         if workspace is None:
-            return Response([], status=status.HTTP_200_OK)
+            return Response(status=status.HTTP_404_NOT_FOUND)
 
         if membership is None:
             return Response(
@@ -157,6 +158,44 @@ class WorkspaceIntegrationListView(WorkspaceIntegrationBaseView):
                     "provider": integration.provider,
                     "base_url": integration.base_url,
                     "created_at": format_datetime(integration.created_at),
+                }
+            )
+
+        return Response(payload)
+
+
+class WorkspaceIntegrationAvailableRepositoriesView(WorkspaceIntegrationBaseView):
+    def get(self, request, workspace_id, integration_id, *args, **kwargs):
+        workspace, membership = self._get_workspace_and_membership(workspace_id)
+        if workspace is None:
+            return []
+
+        if membership is None:
+            return Response(
+                {"detail": "You do not have access to this workspace."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            integration = CodeHostIntegration.objects.get(
+                id=integration_id, workspace=workspace
+            )
+        except CodeHostIntegration.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+
+        provider = get_git_provider(integration)
+        repositories = provider.list_repositories()
+
+        payload = []
+        for repository in repositories:
+            payload.append(
+                {
+                    "external_id": repository.external_id,
+                    "name": repository.name,
+                    "full_path": repository.full_path,
+                    "default_branch": repository.default_branch,
+                    "provider": integration.provider,
+                    "web_url": repository.web_url,
                 }
             )
 
