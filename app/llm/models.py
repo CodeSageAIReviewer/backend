@@ -1,8 +1,7 @@
-from django.conf import settings
-from django.db import models
-
 from code_hosts.models.workspace import Workspace
 from common.models import SimpleBaseModel
+from django.conf import settings
+from django.db import models
 
 
 class LLMProvider(models.TextChoices):

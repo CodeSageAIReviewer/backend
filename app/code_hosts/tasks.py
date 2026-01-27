@@ -2,13 +2,12 @@ import logging
 from datetime import datetime
 
 from celery import shared_task
-from django.db import transaction
-from django.utils import timezone
-from django.utils.dateparse import parse_datetime
-
 from code_hosts.git_providers.factory import get_git_provider
 from code_hosts.models.merge_request import MergeRequest, MergeRequestState
 from code_hosts.models.repository import Repository
+from django.db import transaction
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 logger = logging.getLogger(__name__)
 

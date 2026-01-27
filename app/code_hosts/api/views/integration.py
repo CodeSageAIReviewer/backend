@@ -1,11 +1,3 @@
-from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
-from django.db import transaction
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
 from code_hosts.api.permissions import (
     WorkspaceIntegrationDeletePermission,
     WorkspaceIntegrationModifyPermission,
@@ -18,6 +10,13 @@ from code_hosts.models.merge_request import MergeRequest, MergeRequestState
 from code_hosts.models.repository import Repository
 from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 from code_hosts.tasks import sync_merge_requests
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
+from django.db import transaction
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 PROVIDER_DEFAULT_URLS = {
     CodeHostProvider.GITLAB: "https://gitlab.com",

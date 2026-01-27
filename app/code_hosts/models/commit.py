@@ -1,8 +1,7 @@
-from django.db import models
-
 from code_hosts.models.commit_author import CommitAuthor
 from code_hosts.models.repository import Repository
 from common.models import SimpleBaseModel
+from django.db import models
 
 
 class Commit(SimpleBaseModel):

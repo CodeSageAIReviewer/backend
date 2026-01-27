@@ -1,5 +1,3 @@
-from django.urls import path
-
 from code_hosts.api.views.integration import (
     WorkspaceIntegrationAvailableRepositoriesView,
     WorkspaceIntegrationCreateView,
@@ -17,6 +15,16 @@ from code_hosts.api.views.workspace import (
     WorkspaceDeleteView,
     WorkspaceListView,
     WorkspaceUpdateView,
+)
+from django.urls import path
+from reviews.api.views import (
+    ReviewRunCancelView,
+    ReviewRunCommentsView,
+    ReviewRunCreateView,
+    ReviewRunDetailView,
+    ReviewRunListView,
+    ReviewRunPublishView,
+    ReviewRunRerunView,
 )
 
 urlpatterns = [
@@ -82,5 +90,40 @@ urlpatterns = [
         "<int:workspace_id>/repositories/<int:repository_id>/merge-requests/sync/",
         WorkspaceRepositoryMergeRequestSyncView.as_view(),
         name="workspace-repository-merge-requests-sync",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/run/",
+        ReviewRunCreateView.as_view(),
+        name="workspace-mr-review-run",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/list/",
+        ReviewRunListView.as_view(),
+        name="workspace-mr-review-list",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/<int:review_run_id>/detail/",
+        ReviewRunDetailView.as_view(),
+        name="workspace-mr-review-detail",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/<int:review_run_id>/comments/",
+        ReviewRunCommentsView.as_view(),
+        name="workspace-mr-review-comments",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/<int:review_run_id>/rerun/",
+        ReviewRunRerunView.as_view(),
+        name="workspace-mr-review-rerun",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/<int:review_run_id>/cancel/",
+        ReviewRunCancelView.as_view(),
+        name="workspace-mr-review-cancel",
+    ),
+    path(
+        "<int:workspace_id>/merge-requests/<int:mr_id>/reviews/<int:review_run_id>/publish/",
+        ReviewRunPublishView.as_view(),
+        name="workspace-mr-review-publish",
     ),
 ]

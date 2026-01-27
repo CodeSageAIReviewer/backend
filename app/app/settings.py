@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "common",
     "code_hosts",
     "llm",
+    "reviews",
 ]
 
 MIDDLEWARE = [
@@ -107,12 +108,7 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULE = {
-    "users-ping-every-30-seconds": {
-        "task": "users.tasks.ping",
-        "schedule": timedelta(seconds=30),
-    },
-}
+CELERY_BEAT_SCHEDULE = {}
 
 CORS_ALLOWED_ORIGINS = env.list(
     "CORS_ALLOWED_ORIGINS", default=["http://localhost:8000"]

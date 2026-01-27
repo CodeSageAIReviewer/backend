@@ -1,7 +1,6 @@
-from django.db import models
-
 from code_hosts.models.integration import CodeHostIntegration
 from common.models import SimpleBaseModel
+from django.db import models
 
 
 class Repository(SimpleBaseModel):

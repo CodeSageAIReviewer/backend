@@ -1,6 +1,5 @@
 # llm/providers/ollama.py
 from langchain_community.chat_models import ChatOllama
-
 from llm.providers.base import BaseLLMProvider
 
 

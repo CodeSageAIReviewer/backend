@@ -1,13 +1,12 @@
 from unittest.mock import MagicMock, patch
 
+from code_hosts.git_providers.base import RepositoryInfo
+from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
+from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 from rest_framework.test import APIClient
-
-from code_hosts.git_providers.base import RepositoryInfo
-from code_hosts.models.integration import CodeHostIntegration, CodeHostProvider
-from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 
 
 class WorkspaceAPITest(TestCase):

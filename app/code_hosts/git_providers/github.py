@@ -1,7 +1,6 @@
 from typing import List
 
 import requests
-
 from code_hosts.git_providers.base import (
     BaseGitProvider,
     MergeRequestInfo,
@@ -136,11 +135,31 @@ class GitHubProvider(BaseGitProvider):
 
         return prs
 
-    def get_diff(self, repo_external_id, mr_external_id):
-        raise NotImplementedError
+    def get_diff(self, repo_full_path: str, pr_number: str) -> str:
+        """
+        Возвращает diff для Pull Request.
 
-    def post_comment(self, repo_external_id, mr_external_id, body):
-        raise NotImplementedError
+        repo_full_path: "owner/repo"
+        pr_number: номер PR в репозитории (то, что в GitHub UI как #123)
+        """
+
+        url = f"{self.BASE_API_URL}/repos/{repo_full_path}/pulls/{pr_number}"
+
+        headers = self._headers()
+        # Важно: просим diff-представление
+        headers["Accept"] = "application/vnd.github.v3.diff"
+
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+
+        return response.text
+
+    def post_comment(self, repo_full_path: str, pr_number: str, body: str) -> None:
+        url = f"{self.BASE_API_URL}/repos/{repo_full_path}/issues/{pr_number}/comments"
+        payload = {"body": body}
+
+        response = requests.post(url, headers=self._headers(), json=payload, timeout=30)
+        response.raise_for_status()
 
     def setup_webhook(self, repo_external_id, webhook_url):
         raise NotImplementedError

@@ -1,7 +1,6 @@
+from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 from rest_framework.exceptions import NotFound
 from rest_framework.permissions import BasePermission
-
-from code_hosts.models.workspace import Workspace, WorkspaceMembership, WorkspaceRole
 
 
 class WorkspaceAdminOrOwnerPermission(BasePermission):

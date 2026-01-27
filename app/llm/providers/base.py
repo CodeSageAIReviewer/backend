@@ -5,7 +5,6 @@ from typing import Iterable, List, Optional, Sequence
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-
 from llm.models import LLMIntegration  # путь поправь под свой проект
 
 

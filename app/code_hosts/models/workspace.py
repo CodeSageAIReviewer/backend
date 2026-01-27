@@ -1,6 +1,5 @@
-from django.db import models
-
 from common.models import SimpleBaseModel
+from django.db import models
 from users.models import User
 
 
